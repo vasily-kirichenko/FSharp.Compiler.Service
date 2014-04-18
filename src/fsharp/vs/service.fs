@@ -1902,10 +1902,14 @@ type BackgroundCompiler() as self =
     // 
     /// Cache of builds keyed by options.        
     let incrementalBuildersCache = 
+        System.Diagnostics.Debug.WriteLine (sprintf "[Incremental builder cache] Creation. BuildCacheSize = %d. Stack trace: %s" 
+                                                    buildCacheSize Environment.StackTrace)
         MruCache(keepStrongly=buildCacheSize, keepMax=buildCacheSize, 
                  areSame =  ProjectOptions.AreSameProjectForBuilding, 
                  areSameForSubsumption =  ProjectOptions.AreSameProjectName,
-                 onDiscard = (fun (_, _, decrement:IDisposable) -> decrement.Dispose()))
+                 onDiscard = (fun (_, _, decrement:IDisposable) -> 
+                    System.Diagnostics.Debug.WriteLine (sprintf "[Incremental builder cache] OnDiscard.")
+                    decrement.Dispose()))
 
     let getOrCreateBuilder options =  
         match incrementalBuildersCache.TryGet options with
