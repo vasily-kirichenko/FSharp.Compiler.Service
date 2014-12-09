@@ -2787,7 +2787,7 @@ type FSharpChecker(projectCacheSize, keepAssemblyContents, keepAllBackgroundReso
     /// Typecheck a source code file, returning a handle to the results of the 
     /// parse including the reconstructed types in the file.
     member ic.ParseAndCheckFileInProject(filename:string, fileVersion:int, source:string, options:FSharpProjectOptions, ?isResultObsolete, ?textSnapshotInfo:obj) =        
-        let cachedResults = parseAndCheckFileInProjectCache.TryGet((filename,source,options)) 
+        let cachedResults = None // parseAndCheckFileInProjectCache.TryGet((filename,source,options)) 
         let (IsResultObsolete(isResultObsolete)) = defaultArg isResultObsolete (IsResultObsolete(fun _ -> false))
         async {
             let! parseResults, checkAnswer, usedCachedResults = backgroundCompiler.ParseAndCheckFileInProject(filename,source,options,isResultObsolete,textSnapshotInfo,cachedResults)
