@@ -1044,35 +1044,35 @@ let GetNestedTypesOfType (ad, ncenv:NameResolver, optFilter, staticResInfo, chec
     let g = ncenv.g
     ncenv.InfoReader.GetPrimaryTypeHierachy(AllowMultiIntfInstantiations.Yes,m,typ) |> List.collect (fun typ -> 
         if isAppTy g typ then 
-            let tcref,tinst = destAppTy g typ
-            let tycon = tcref.Deref
+            let destAppTy = destAppTy g typ
+            let tycon = destAppTy.Ref.Deref
             let mty = tycon.ModuleOrNamespaceType
             // No dotting through type generators to get to a nested type!
 #if EXTENSIONTYPING
             if checkForGenerated then 
-                CheckForDirectReferenceToGeneratedType (tcref, PermitDirectReferenceToGeneratedType.No, m)
+                CheckForDirectReferenceToGeneratedType (destAppTy.Ref, PermitDirectReferenceToGeneratedType.No, m)
 #else
             checkForGenerated |> ignore
 #endif
 
             match optFilter with 
             | Some nm -> 
-                LookupTypeNameInEntityMaybeHaveArity (ncenv.amap, m, nm, staticResInfo, tcref)
-                    |> List.map (MakeNestedType ncenv tinst m) 
+                LookupTypeNameInEntityMaybeHaveArity (ncenv.amap, m, nm, staticResInfo, destAppTy.Ref)
+                    |> List.map (MakeNestedType ncenv destAppTy.Inst m) 
             | None -> 
 #if EXTENSIONTYPING
                 match tycon.TypeReprInfo with 
                 | TProvidedTypeExtensionPoint info ->
                     [ for nestedType in info.ProvidedType.PApplyArray((fun sty -> sty.GetNestedTypes()), "GetNestedTypes", m) do 
                         let nestedTypeName = nestedType.PUntaint((fun t -> t.Name), m)
-                        for nestedTcref in LookupTypeNameInEntityMaybeHaveArity (ncenv.amap, m, nestedTypeName, staticResInfo, tcref)  do
-                             yield  MakeNestedType ncenv tinst m nestedTcref ]
+                        for nestedTcref in LookupTypeNameInEntityMaybeHaveArity (ncenv.amap, m, nestedTypeName, staticResInfo, destAppTy.Ref)  do
+                             yield  MakeNestedType ncenv destAppTy.Inst m nestedTcref ]
                 
                 | _ -> 
 #endif
                     mty.TypesByAccessNames.Values 
                         |> Seq.toList
-                        |> List.map (tcref.NestedTyconRef >> MakeNestedType ncenv tinst m)
+                        |> List.map (destAppTy.Ref.NestedTyconRef >> MakeNestedType ncenv destAppTy.Inst m)
                         |> List.filter (IsTypeAccessible g ncenv.amap m ad)
         else [])
 
@@ -1774,10 +1774,10 @@ type LookupKind =
 /// Try to find a union case of a type, with the given name
 let TryFindUnionCaseOfType g typ nm =
     if isAppTy g typ then 
-        let tcref,tinst = destAppTy g typ
-        match tcref.GetUnionCaseByName nm with 
+        let destAppTy = destAppTy g typ
+        match destAppTy.Ref.GetUnionCaseByName nm with 
         | None -> None
-        | Some ucase -> Some(UnionCaseInfo(tinst,tcref.MakeNestedUnionCaseRef ucase))
+        | Some ucase -> Some(UnionCaseInfo(destAppTy.Inst,destAppTy.Ref.MakeNestedUnionCaseRef ucase))
     else 
         None
 
@@ -2775,10 +2775,10 @@ let ResolveCompletionsInType (ncenv: NameResolver) nenv (completionTargets: Reso
 
     let ucinfos = 
         if completionTargets.ResolveAll && statics  && isAppTy g typ then 
-            let tc,tinst = destAppTy g typ
-            tc.UnionCasesAsRefList 
+            let destAppTy = destAppTy g typ
+            destAppTy.Ref.UnionCasesAsRefList 
             |> List.filter (IsUnionCaseUnseen ad g ncenv.amap m >> not)
-            |> List.map (fun ucref ->  Item.UnionCase(UnionCaseInfo(tinst,ucref),false))
+            |> List.map (fun ucref ->  Item.UnionCase(UnionCaseInfo(destAppTy.Inst,ucref),false))
         else []
 
     let einfos = 

@@ -4209,9 +4209,9 @@ and TcTypeOrMeasure optKind cenv newOk checkCxs occ env (tpenv:SyntacticUnscoped
         let ad = env.eAccessRights
         let ltyp,tpenv = TcType cenv newOk checkCxs occ env tpenv ltyp
         if not (isAppTy cenv.g ltyp) then error(Error(FSComp.SR.tcTypeHasNoNestedTypes(),m))
-        let tcref,tinst = destAppTy cenv.g ltyp
-        let tcref = ResolveTypeLongIdentInTyconRef cenv.tcSink cenv.nameResolver env.eNameResEnv (TypeNameResolutionInfo.ResolveToTypeRefs (TypeNameResolutionStaticArgsInfo.FromTyArgs args.Length)) ad m tcref longId 
-        TcTypeApp cenv newOk checkCxs occ env tpenv m tcref tinst args 
+        let destAppTy = destAppTy cenv.g ltyp
+        let tcref = ResolveTypeLongIdentInTyconRef cenv.tcSink cenv.nameResolver env.eNameResEnv (TypeNameResolutionInfo.ResolveToTypeRefs (TypeNameResolutionStaticArgsInfo.FromTyArgs args.Length)) ad m destAppTy.Ref longId 
+        TcTypeApp cenv newOk checkCxs occ env tpenv m tcref destAppTy.Inst args 
 
     | SynType.Tuple(args,m) ->   
         let isMeasure = match optKind with Some TyparKind.Measure -> true | None -> List.exists (fun (isquot,_) -> isquot) args | _ -> false
@@ -13091,19 +13091,19 @@ module TyconConstraintInference = begin
                     | _ -> 
 
                         if isAppTy g ty then 
-                            let tcref,tinst = destAppTy g ty 
+                            let destAppTy = destAppTy g ty 
                             // Check the basic requirement - IComparable/IStructuralComparable or assumed-comparable
-                            (if initialAssumedTycons.Contains tcref.Stamp then 
-                                assumedTycons.Contains tcref.Stamp
+                            (if initialAssumedTycons.Contains destAppTy.Ref.Stamp then 
+                                assumedTycons.Contains destAppTy.Ref.Stamp
                              else
                                 ExistsSameHeadTypeInHierarchy g cenv.amap range0 ty g.mk_IComparable_ty   || 
                                 ExistsSameHeadTypeInHierarchy g cenv.amap range0 ty g.mk_IStructuralComparable_ty)
                             &&
                             // Check it isn't ruled out by the user
-                            not (HasFSharpAttribute g g.attrib_NoComparisonAttribute tcref.Attribs)
+                            not (HasFSharpAttribute g g.attrib_NoComparisonAttribute destAppTy.Ref.Attribs)
                             &&
                             // Check the structural dependencies
-                            (tinst, tcref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> 
+                            (destAppTy.Inst, destAppTy.Ref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> 
                                 if tp.ComparisonConditionalOn || assumedTypars.Contains tp.Stamp then 
                                     checkIfFieldTypeSupportsComparison  tycon ty 
                                 else 
@@ -13215,19 +13215,19 @@ module TyconConstraintInference = begin
                     | _ -> 
                         // Check the basic requirement - any types except those eliminated
                         if isAppTy g ty then
-                            let tcref,tinst = destAppTy g ty
-                            (if initialAssumedTycons.Contains tcref.Stamp then 
-                                assumedTycons.Contains tcref.Stamp
-                             elif AugmentWithHashCompare.TyconIsCandidateForAugmentationWithEquals g tcref.Deref then
-                                isSome tcref.GeneratedHashAndEqualsWithComparerValues
+                            let destAppTy = destAppTy g ty
+                            (if initialAssumedTycons.Contains destAppTy.Ref.Stamp then 
+                                assumedTycons.Contains destAppTy.Ref.Stamp
+                             elif AugmentWithHashCompare.TyconIsCandidateForAugmentationWithEquals g destAppTy.Ref.Deref then
+                                isSome destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues
                              else
                                 true) 
                              &&
                              // Check it isn't ruled out by the user
-                             not (HasFSharpAttribute g g.attrib_NoEqualityAttribute tcref.Attribs)
+                             not (HasFSharpAttribute g g.attrib_NoEqualityAttribute destAppTy.Ref.Attribs)
                              &&
                              // Check the structural dependencies
-                             (tinst, tcref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> 
+                             (destAppTy.Inst, destAppTy.Ref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> 
                                  if tp.EqualityConditionalOn || assumedTypars.Contains tp.Stamp then 
                                      checkIfFieldTypeSupportsEquality  tycon ty 
                                  else 

@@ -1044,8 +1044,8 @@ let rec TypeDefinitelyHasEquality g ty =
         | _ -> 
            // The type is equatable because it has Object.Equals(...)
            isAppTy g ty &&
-           let tcref,tinst = destAppTy g ty 
+           let destAppTy = destAppTy g ty 
            // Give a good error for structural types excluded from the equality relation because of their fields
-           not (TyconIsCandidateForAugmentationWithEquals g tcref.Deref && isNone tcref.GeneratedHashAndEqualsWithComparerValues) &&
+           not (TyconIsCandidateForAugmentationWithEquals g destAppTy.Ref.Deref && isNone destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues) &&
            // Check the (possibly inferred) structural dependencies
-           (tinst, tcref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> not tp.EqualityConditionalOn || TypeDefinitelyHasEquality  g ty)
+           (destAppTy.Inst, destAppTy.Ref.TyparsNoRange) ||> List.lengthsEqAndForall2 (fun ty tp -> not tp.EqualityConditionalOn || TypeDefinitelyHasEquality  g ty)

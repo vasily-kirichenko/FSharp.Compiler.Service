@@ -825,8 +825,8 @@ and SolveTypSubsumesTyp (csenv:ConstraintSolverEnv) ndeep m2 (trace: OptionalTra
               tyconRefEq g tcr1 g.tcref_System_Collections_Generic_IReadOnlyCollection || 
               tyconRefEq g tcr1 g.tcref_System_Collections_Generic_IEnumerable)) then
 
-          let _,tinst = destAppTy g ty1
-          match tinst with 
+          let destAppTy = destAppTy g ty1
+          match destAppTy.Inst with 
           | [ty1arg] -> 
               let ty2arg = destArrayTy g ty2
               SolveTypEqualsTypKeepAbbrevs csenv ndeep m2 trace ty1arg  ty2arg
@@ -1631,9 +1631,9 @@ and SolveTypeSupportsComparison (csenv:ConstraintSolverEnv) ndeep m2 trace ty =
 
                // The type is comparable because it implements IComparable
                 if isAppTy g ty then 
-                    let tcref,tinst = destAppTy g ty 
+                    let destAppTy = destAppTy g ty 
                     // Check the (possibly inferred) structural dependencies
-                    (tinst, tcref.TyparsNoRange) ||> Iterate2D (fun ty tp -> 
+                    (destAppTy.Inst, destAppTy.Ref.TyparsNoRange) ||> Iterate2D (fun ty tp -> 
                         if tp.ComparisonConditionalOn then 
                             SolveTypeSupportsComparison (csenv:ConstraintSolverEnv) ndeep m2 trace ty 
                         else 
@@ -1669,17 +1669,17 @@ and SolveTypSupportsEquality (csenv:ConstraintSolverEnv) ndeep m2 trace ty =
         | _ -> 
            // The type is equatable because it has Object.Equals(...)
            if isAppTy g ty then 
-               let tcref,tinst = destAppTy g ty 
+               let destAppTy = destAppTy g ty 
 
                // Give a good error for structural types excluded from the equality relation because of their fields
-               if (AugmentWithHashCompare.TyconIsCandidateForAugmentationWithEquals g tcref.Deref && 
-                   isNone tcref.GeneratedHashAndEqualsWithComparerValues) then
+               if (AugmentWithHashCompare.TyconIsCandidateForAugmentationWithEquals g destAppTy.Ref.Deref && 
+                   isNone destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues) then
 
                    ErrorD (ConstraintSolverError(FSComp.SR.csTypeDoesNotSupportEquality3(NicePrint.minimalStringOfType denv ty),m,m2))
 
                else
                    // Check the (possibly inferred) structural dependencies
-                   (tinst, tcref.TyparsNoRange) ||> Iterate2D (fun ty tp -> 
+                   (destAppTy.Inst, destAppTy.Ref.TyparsNoRange) ||> Iterate2D (fun ty tp -> 
                        if tp.EqualityConditionalOn then 
                            SolveTypSupportsEquality (csenv:ConstraintSolverEnv) ndeep m2 trace ty 
                        else 
@@ -2492,8 +2492,8 @@ let CodegenWitnessThatTypSupportsTraitConstraint tcVal g amap m (traitInfo:Trait
               | Some sln ->
                   match sln with 
                   | ILMethSln(typ,extOpt,mref,minst) ->
-                       let tcref,_tinst = destAppTy g typ
-                       let mdef = IL.resolveILMethodRef tcref.ILTyconRawMetadata mref
+                       let destAppTy = destAppTy g typ
+                       let mdef = IL.resolveILMethodRef destAppTy.Ref.ILTyconRawMetadata mref
                        let ilMethInfo =
                            match extOpt with 
                            | None -> MethInfo.CreateILMeth(amap,m,typ,mdef)

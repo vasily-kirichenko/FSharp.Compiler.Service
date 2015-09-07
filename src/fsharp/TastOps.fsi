@@ -391,8 +391,14 @@ val mkAppTy : TyconRef -> TypeInst -> TType
 val mkProvenUnionCaseTy : UnionCaseRef -> TypeInst -> TType
 val isProvenUnionCaseTy : TType -> bool
 
+[<Struct>]
+type DestAppTy =
+    val Ref: TyconRef
+    val Inst: TypeInst
+    new: TyconRef * TypeInst -> DestAppTy
+
 val isAppTy        : TcGlobals -> TType -> bool
-val destAppTy      : TcGlobals -> TType -> TyconRef * TypeInst
+val destAppTy      : TcGlobals -> TType -> DestAppTy
 val tcrefOfAppTy   : TcGlobals -> TType -> TyconRef
 val tyconOfAppTy   : TcGlobals -> TType -> Tycon
 val tryDestAppTy   : TcGlobals -> TType -> TyconRef option

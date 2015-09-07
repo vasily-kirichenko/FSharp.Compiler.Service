@@ -1423,7 +1423,7 @@ module private TastDefinitionPrinting =
     /// Another re-implementation of type printing, this time based off provided info objects.
     let layoutProvidedTycon (denv:DisplayEnv) (infoReader:InfoReader) ad m start lhsL ty =
       let g = denv.g
-      let tcref,_ = destAppTy g ty
+      let destAppTy = destAppTy g ty
 
       if isEnumTy g ty then 
         let fieldLs = 
@@ -1506,7 +1506,7 @@ module private TastDefinitionPrinting =
         let membLs = (methLs @ fieldLs @ propLs @ eventLs) |> List.sortBy fst  |> List.map snd
 
         let nestedTypeLs  = 
-          match tcref.TypeReprInfo with 
+          match destAppTy.Ref.TypeReprInfo with 
           | TProvidedTypeExtensionPoint info ->
                 [ 
                     for nestedType in info.ProvidedType.PApplyArray((fun sty -> sty.GetNestedTypes()), "GetNestedTypes", m) do 

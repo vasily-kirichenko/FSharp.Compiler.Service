@@ -701,7 +701,14 @@ let isProvenUnionCaseTy ty = match ty with TType_ucase _ -> true | _ -> false
 let mkAppTy tcref tyargs = TType_app(tcref,tyargs)
 let mkProvenUnionCaseTy ucref tyargs = TType_ucase(ucref,tyargs)
 let isAppTy   g ty = ty |> stripTyEqns g |> (function TType_app _ -> true | _ -> false) 
-let destAppTy g ty = ty |> stripTyEqns g |> (function TType_app(tcref,tinst) -> tcref,tinst | _ -> failwith "destAppTy") 
+
+[<Struct>]
+type DestAppTy =
+    val Ref: TyconRef
+    val Inst: TypeInst
+    new (ref: TyconRef, inst: TypeInst) = { Ref = ref; Inst = inst }
+
+let destAppTy g ty = ty |> stripTyEqns g |> (function TType_app(tcref,tinst) -> DestAppTy(tcref,tinst) | _ -> failwith "destAppTy") 
 let tcrefOfAppTy   g ty = ty |> stripTyEqns g |> (function TType_app(tcref,_) -> tcref | _ -> failwith "tcrefOfAppTy") 
 let tryDestAppTy   g ty = ty |> stripTyEqns g |> (function TType_app(tcref,_) -> Some tcref | _ -> None) 
 let (|AppTy|_|) g ty = ty |> stripTyEqns g |> (function TType_app(tcref,tinst) -> Some (tcref,tinst) | _ -> None) 
@@ -736,8 +743,8 @@ let (|ByrefTy|_|) g ty =
 
 let mkInstForAppTy g typ = 
     if isAppTy g typ then 
-      let tcref,tinst = destAppTy g typ
-      mkTyconRefInst tcref tinst
+      let destAppTy = destAppTy g typ
+      mkTyconRefInst destAppTy.Ref destAppTy.Inst
     else []
 
 let domainOfFunTy g ty = fst(destFunTy g ty)
@@ -1422,14 +1429,14 @@ let rankOfArrayTyconRef g tcr =
 //------------------------------------------------------------------------- 
 
 let destArrayTy (g:TcGlobals) ty =
-    let _,tinst = destAppTy g ty
-    match tinst with 
+    let destAppTy = destAppTy g ty
+    match destAppTy.Inst with 
     | [ty] -> ty
     | _ -> failwith "destArrayTy";
 
 let destListTy (g:TcGlobals) ty =
-    let _,tinst = destAppTy g ty
-    match tinst with
+    let destAppTy = destAppTy g ty
+    match destAppTy.Inst with
     | [ty] -> ty
     | _ -> failwith "destListTy";
 
@@ -1485,8 +1492,8 @@ let metadataOfTy g ty =
     | _ -> 
 #endif
     if isILAppTy g ty then 
-       let tcref,_ = destAppTy g ty
-       let scoref,_,tdef = tcref.ILTyconInfo
+       let destAppTy = destAppTy g ty
+       let scoref,_,tdef = destAppTy.Ref.ILTyconInfo
        ILTypeMetadata (scoref,tdef)
     else 
        FSharpOrArrayOrByrefOrTupleOrExnTypeMetadata 
@@ -1512,8 +1519,8 @@ let rankOfArrayTy g ty = rankOfArrayTyconRef g (tcrefOfAppTy g ty)
 
 let isFSharpObjModelRefTy g ty = 
     isFSharpObjModelTy g ty && 
-    let tcr,_ = destAppTy g ty
-    match tcr.FSharpObjectModelTypeInfo.fsobjmodel_kind with 
+    let destAppTy = destAppTy g ty
+    match destAppTy.Ref.FSharpObjectModelTypeInfo.fsobjmodel_kind with 
     | TTyconClass | TTyconInterface   | TTyconDelegate _ -> true
     | TTyconStruct | TTyconEnum -> false
 
@@ -5820,8 +5827,11 @@ let permuteExprList (sigma:int[]) (exprs: Expr list) (typ: TType list) (names:st
 /// We still need to sort by index. 
 let mkRecordExpr g (lnk,tcref,tinst,rfrefs:RecdFieldRef list,args,m) =  
     // Remove any abbreviations 
-    let tcref,tinst = destAppTy g (mkAppTy tcref tinst)
-    
+    //let tcref,tinst = destAppTy g (mkAppTy tcref tinst)
+    let destAppTy = destAppTy g (mkAppTy tcref tinst)
+    let tcref = destAppTy.Ref
+    let tinst = destAppTy.Inst
+        
     let rfrefsArray = rfrefs |> List.mapi (fun i x -> (i,x)) |> Array.ofList
     rfrefsArray |> Array.sortInPlaceBy (fun (_,r) -> r.Index) ;
     let sigma = Array.create rfrefsArray.Length -1
@@ -6760,9 +6770,9 @@ let rec typeEnc g (gtpsType,gtpsMethod) ty =
     | TType_forall _ -> 
         "Microsoft.FSharp.Core.FSharpTypeFunc"
     | _ when isArrayTy g ty   -> 
-        let tcref,tinst = destAppTy g ty
+        let destAppTy = destAppTy g ty
         let arraySuffix = 
-            match rankOfArrayTyconRef g tcref with
+            match rankOfArrayTyconRef g destAppTy.Ref with
             // The easy case
             | 1 -> "[]"
             // REVIEW
@@ -6773,7 +6783,7 @@ let rec typeEnc g (gtpsType,gtpsMethod) ty =
             | 3 -> "[0:,0:,0:]"
             | 4 -> "[0:,0:,0:,0:]"
             | _ -> failwith "impossible: rankOfArrayTyconRef: unsupported array rank"
-        typeEnc g (gtpsType,gtpsMethod) (List.head tinst) ^ arraySuffix
+        typeEnc g (gtpsType,gtpsMethod) (List.head destAppTy.Inst) ^ arraySuffix
     | TType_ucase (UCRef(tcref,_),tinst)   
     | TType_app (tcref,tinst)   -> 
         if tyconRefEq g g.byref_tcr tcref then
@@ -6946,14 +6956,14 @@ let rec TypeHasDefaultValue g m ty =
     || (isStructTy g ty &&
         // Is it an F# struct type?
         (if isFSharpStructTy g ty then 
-            let tcref,tinst = destAppTy g ty 
+            let destAppTy = destAppTy g ty 
             let flds = 
                 // Note this includes fields implied by the use of the implicit class construction syntax
-                tcref.AllInstanceFieldsAsList
+                destAppTy.Ref.AllInstanceFieldsAsList
                   // We can ignore fields with the DefaultValue(false) attribute 
                   |> List.filter (fun fld -> not (TryFindFSharpBoolAttribute g g.attrib_DefaultValueAttribute fld.FieldAttribs = Some(false)))
 
-            flds |> List.forall (actualTyOfRecdField (mkTyconRefInst tcref tinst) >> TypeHasDefaultValue g m)
+            flds |> List.forall (actualTyOfRecdField (mkTyconRefInst destAppTy.Ref destAppTy.Inst) >> TypeHasDefaultValue g m)
          elif isTupleStructTy g ty then 
             destTupleTy g ty |> List.forall (TypeHasDefaultValue g m)
          else
@@ -6966,11 +6976,11 @@ let (|SpecialComparableHeadType|_|) g ty =
     if isTupleTy g ty then 
         Some (destTupleTy g ty) 
     elif isAppTy g ty then 
-        let tcref,tinst = destAppTy g ty 
-        if isArrayTyconRef g tcref ||
-           tyconRefEq g tcref g.system_UIntPtr_tcref ||
-           tyconRefEq g tcref g.system_IntPtr_tcref then
-             Some tinst 
+        let destAppTy = destAppTy g ty 
+        if isArrayTyconRef g destAppTy.Ref ||
+           tyconRefEq g destAppTy.Ref g.system_UIntPtr_tcref ||
+           tyconRefEq g destAppTy.Ref g.system_IntPtr_tcref then
+             Some destAppTy.Inst 
         else 
             None
     else
@@ -7078,17 +7088,17 @@ let isSealedTy g ty =
     | FSharpOrArrayOrByrefOrTupleOrExnTypeMetadata -> 
 
        if (isFSharpInterfaceTy g ty || isFSharpClassTy g ty) then 
-          let tcref,_ = destAppTy g ty
-          (TryFindFSharpBoolAttribute g g.attrib_SealedAttribute tcref.Attribs = Some(true))
+          let destAppTy = destAppTy g ty
+          (TryFindFSharpBoolAttribute g g.attrib_SealedAttribute destAppTy.Ref.Attribs = Some(true))
        else 
           // All other F# types, array, byref, tuple types are sealed
           true
    
 let isComInteropTy g ty =
-    let tcr,_ = destAppTy g ty
+    let destAppTy = destAppTy g ty
     match g.attrib_ComImportAttribute with
     | None -> false
-    | Some attr -> TryFindFSharpBoolAttribute g attr tcr.Attribs = Some(true)
+    | Some attr -> TryFindFSharpBoolAttribute g attr destAppTy.Ref.Attribs = Some(true)
   
 let ValSpecIsCompiledAsInstance g (v:Val) =
     match v.MemberInfo with 

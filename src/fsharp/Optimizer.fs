@@ -2311,7 +2311,7 @@ and StripToNominalTyconRef cenv ty =
     if isAppTy cenv.g ty then destAppTy cenv.g ty 
     elif isTupleTy cenv.g ty then 
         let tyargs = destTupleTy cenv.g ty
-        mkCompiledTupleTyconRef cenv.g tyargs, tyargs 
+        DestAppTy(mkCompiledTupleTyconRef cenv.g tyargs, tyargs) 
     else failwith "StripToNominalTyconRef: unreachable" 
       
 
@@ -2320,7 +2320,7 @@ and CanDevirtualizeApplication cenv v vref ty args  =
      && not (isUnitTy cenv.g ty)
      && isAppTy cenv.g ty 
      // Exclusion: Some unions have null as representations 
-     && not (IsUnionTypeWithNullAsTrueValue cenv.g (fst(StripToNominalTyconRef cenv ty)).Deref)  
+     && not (IsUnionTypeWithNullAsTrueValue cenv.g ((StripToNominalTyconRef cenv ty).Ref.Deref))  
      // If we de-virtualize an operation on structs then we have to take the address of the object argument
      // Hence we have to actually have the object argument available to us,
      && (not (isStructTy cenv.g ty) || nonNil args) 
@@ -2364,15 +2364,15 @@ and TryDevirtualizeApplication cenv env (f,tyargs,args,m) =
     
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_comparison_inner_vref ty args ->
          
-        let tcref,tyargs = StripToNominalTyconRef cenv ty
-        match tcref.GeneratedCompareToValues with 
+        let destAppTy = StripToNominalTyconRef cenv ty
+        match destAppTy.Ref.GeneratedCompareToValues with 
         | Some (_,vref)  -> Some (DevirtualizeApplication cenv env vref ty tyargs args m)
         | _ -> None
         
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_comparison_withc_inner_vref ty args ->
          
-        let tcref,tyargs = StripToNominalTyconRef cenv ty
-        match tcref.GeneratedCompareToWithComparerValues, args with 
+        let destAppTy = StripToNominalTyconRef cenv ty
+        match destAppTy.Ref.GeneratedCompareToWithComparerValues, args with 
         | Some vref, [comp; x; y]  -> 
             // the target takes a tupled argument, so we need to reorder the arg expressions in the
             // arg list, and create a tuple of y & comp
@@ -2387,16 +2387,16 @@ and TryDevirtualizeApplication cenv env (f,tyargs,args,m) =
     //           We are devirtualizing to a Equals(T) method which also implements PER semantics (5537: this should be ER semantics)
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_equality_er_inner_vref ty args ->
          
-        let tcref,tyargs = StripToNominalTyconRef cenv ty 
-        match tcref.GeneratedHashAndEqualsValues with 
+        let destAppTy = StripToNominalTyconRef cenv ty 
+        match destAppTy.Ref.GeneratedHashAndEqualsValues with 
         | Some (_,vref)  -> Some (DevirtualizeApplication cenv env vref ty tyargs args m)
         | _ -> None
         
 
     // Optimize/analyze calls to LanguagePrimitives.HashCompare.GenericEqualityWithComparerFast
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_equality_withc_inner_vref ty args ->
-        let tcref,tyargs = StripToNominalTyconRef cenv ty
-        match tcref.GeneratedHashAndEqualsWithComparerValues, args with
+        let destAppTy = StripToNominalTyconRef cenv ty
+        match destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues, args with
         | Some (_,_,withcEqualsVal), [comp; x; y]  -> 
             // push the comparer to the end and box the argument
             let args2 = [x; mkTupledNoTypes cenv.g m [mkCoerceExpr(y,cenv.g.obj_ty,m,ty) ; comp]]
@@ -2405,8 +2405,8 @@ and TryDevirtualizeApplication cenv env (f,tyargs,args,m) =
       
     // Optimize/analyze calls to LanguagePrimitives.HashCompare.GenericEqualityWithComparer
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_equality_per_inner_vref ty args  && not(isTupleTy cenv.g ty) ->
-       let tcref,tyargs = StripToNominalTyconRef cenv ty
-       match tcref.GeneratedHashAndEqualsWithComparerValues, args with
+       let destAppTy = StripToNominalTyconRef cenv ty
+       match destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues, args with
        | Some (_,_,withcEqualsVal), [x; y] -> 
            let args2 = [x; mkTupledNoTypes cenv.g m [mkCoerceExpr(y,cenv.g.obj_ty,m,ty); (mkCallGetGenericPEREqualityComparer cenv.g m)]]
            Some (DevirtualizeApplication cenv env withcEqualsVal ty tyargs args2 m)
@@ -2414,8 +2414,8 @@ and TryDevirtualizeApplication cenv env (f,tyargs,args,m) =
     
     // Optimize/analyze calls to LanguagePrimitives.HashCompare.GenericHashIntrinsic
     | Expr.Val(v,_,_),[ty],_ when CanDevirtualizeApplication cenv v cenv.g.generic_hash_inner_vref ty args ->
-        let tcref,tyargs = StripToNominalTyconRef cenv ty
-        match tcref.GeneratedHashAndEqualsWithComparerValues, args with
+        let destAppTy = StripToNominalTyconRef cenv ty
+        match destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues, args with
         | Some (_,withcGetHashCodeVal,_), [x] -> 
             let args2 = [x; mkCallGetGenericEREqualityComparer cenv.g m]
             Some (DevirtualizeApplication cenv env withcGetHashCodeVal ty tyargs args2 m)
@@ -2423,8 +2423,8 @@ and TryDevirtualizeApplication cenv env (f,tyargs,args,m) =
         
     // Optimize/analyze calls to LanguagePrimitives.HashCompare.GenericHashWithComparerIntrinsic
     | Expr.Val(v,_,_),[ty],_ when  CanDevirtualizeApplication cenv v cenv.g.generic_hash_withc_inner_vref ty args ->
-        let tcref,tyargs = StripToNominalTyconRef cenv ty
-        match tcref.GeneratedHashAndEqualsWithComparerValues, args with
+        let destAppTy = StripToNominalTyconRef cenv ty
+        match destAppTy.Ref.GeneratedHashAndEqualsWithComparerValues, args with
         | Some (_,withcGetHashCodeVal,_), [comp; x]  -> 
             let args2 = [x; comp]
             Some (DevirtualizeApplication cenv env withcGetHashCodeVal ty tyargs args2 m)

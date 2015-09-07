@@ -4902,17 +4902,17 @@ and ComputeFlagFixupsForMemberBinding cenv (v:Val,memberInfo:ValMemberInfo) =
      else 
          memberInfo.ImplementedSlotSigs |> List.map (fun slotsig -> 
              let oty = slotsig.ImplementedType
-             let otcref,_ = destAppTy cenv.g oty
+             let otcAppTy = destAppTy cenv.g oty
              let tcref = v.MemberApparentParent
              
              let useMethodImpl = 
                  // REVIEW: it would be good to get rid of this special casing of Compare and GetHashCode during code generation
                  let isCompare = 
                      (isSome tcref.GeneratedCompareToValues && typeEquiv cenv.g oty cenv.g.mk_IComparable_ty) ||
-                     (isSome tcref.GeneratedCompareToValues && tyconRefEq cenv.g cenv.g.system_GenericIComparable_tcref otcref)
+                     (isSome tcref.GeneratedCompareToValues && tyconRefEq cenv.g cenv.g.system_GenericIComparable_tcref otcAppTy.Ref)
                      
                  let isGenericEquals =
-                     (isSome tcref.GeneratedHashAndEqualsWithComparerValues &&  tyconRefEq cenv.g cenv.g.system_GenericIEquatable_tcref otcref)
+                     (isSome tcref.GeneratedHashAndEqualsWithComparerValues &&  tyconRefEq cenv.g cenv.g.system_GenericIEquatable_tcref otcAppTy.Ref)
                      
                  let isStructural =
                      (isSome tcref.GeneratedCompareToWithComparerValues && typeEquiv cenv.g oty cenv.g.mk_IStructuralComparable_ty) ||

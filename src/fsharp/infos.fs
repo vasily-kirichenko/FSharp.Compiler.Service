@@ -67,16 +67,16 @@ let GetSuperTypeOfType g amap m typ =
         | Some super -> Some(Import.ImportProvidedType amap m super)
 #endif
     | ILTypeMetadata (scoref,tdef) -> 
-        let _,tinst = destAppTy g typ
+        let destAppTy = destAppTy g typ
         match tdef.Extends with 
         | None -> None
-        | Some ilty -> Some (ImportType scoref amap m tinst ilty)
+        | Some ilty -> Some (ImportType scoref amap m destAppTy.Inst ilty)
 
     | FSharpOrArrayOrByrefOrTupleOrExnTypeMetadata -> 
 
         if isFSharpObjModelTy g typ  || isExnDeclTy g typ then 
-            let tcref,_tinst = destAppTy g typ
-            Some (instType (mkInstForAppTy g typ) (superOfTycon g tcref.Deref))
+            let destAppTy = destAppTy g typ
+            Some (instType (mkInstForAppTy g typ) (superOfTycon g destAppTy.Ref.Deref))
         elif isArrayTy g typ then
             Some g.system_Array_typ
         elif isRefTy g typ && not (isObjTy g typ) then 
@@ -99,9 +99,9 @@ type SkipUnrefInterfaces = Yes | No
 let rec GetImmediateInterfacesOfType skipUnref g amap m typ = 
     let itys = 
         if isAppTy g typ then
-            let tcref,tinst = destAppTy g typ
-            if tcref.IsMeasureableReprTycon then             
-                [ match tcref.TypeReprInfo with 
+            let destAppTy = destAppTy g typ
+            if destAppTy.Ref.IsMeasureableReprTycon then             
+                [ match destAppTy.Ref.TypeReprInfo with 
                   | TMeasureableRepr reprTy -> 
                        for ity in GetImmediateInterfacesOfType skipUnref g amap m reprTy do 
                           if isAppTy g ity then 
@@ -130,10 +130,10 @@ let rec GetImmediateInterfacesOfType skipUnref g amap m typ =
                     // assume those are present. 
                     [ for ity in tdef.Implements |> ILList.toList  do
                          if skipUnref = SkipUnrefInterfaces.No || CanImportType scoref amap m ity then 
-                             yield ImportType scoref amap m tinst ity ]
+                             yield ImportType scoref amap m destAppTy.Inst ity ]
 
                 | FSharpOrArrayOrByrefOrTupleOrExnTypeMetadata -> 
-                    tcref.ImmediateInterfaceTypesOfFSharpTycon |> List.map (instType (mkInstForAppTy g typ)) 
+                    destAppTy.Ref.ImmediateInterfaceTypesOfFSharpTycon |> List.map (instType (mkInstForAppTy g typ)) 
         else 
             []
         
@@ -630,10 +630,10 @@ type ILTypeInfo =
 
     static member FromType g ty = 
         if isILAppTy g ty then 
-            let tcref,tinst = destAppTy g ty
-            let scoref,enc,tdef = tcref.ILTyconInfo
+            let destAppTy = destAppTy g ty
+            let scoref,enc,tdef = destAppTy.Ref.ILTyconInfo
             let tref = mkRefForNestedILTypeDef scoref (enc,tdef)
-            ILTypeInfo(tcref,tref,tinst,tdef)
+            ILTypeInfo(destAppTy.Ref,tref,destAppTy.Inst,tdef)
         else 
             failwith "ILTypeInfo.FromType"
 
@@ -2415,8 +2415,8 @@ module AccessibilityLogic =
     /// Indicates if a type is accessible (both definition and instantiation)
     let rec IsTypeAccessible g amap m ad ty = 
         not (isAppTy g ty) ||
-        let tcref,tinst = destAppTy g ty
-        IsEntityAccessible amap m ad tcref && IsTypeInstAccessible g amap m ad tinst
+        let destAppTy = destAppTy g ty
+        IsEntityAccessible amap m ad destAppTy.Ref && IsTypeInstAccessible g amap m ad destAppTy.Inst
 
     and IsTypeInstAccessible g amap m ad tinst = 
         match tinst with 
@@ -2430,8 +2430,8 @@ module AccessibilityLogic =
         if not isTyAccessible then false
         else
             not (isAppTy g ty) ||
-            let tcrefOfViewedItem,_ = destAppTy g ty
-            IsILMemberAccessible g amap m tcrefOfViewedItem ad access
+            let destAppTy = destAppTy g ty
+            IsILMemberAccessible g amap m destAppTy.Ref ad access
 
     /// Compute the accessiblity of a provided member
     let ComputeILAccess isPublic isFamily isFamilyOrAssembly isFamilyAndAssembly =
