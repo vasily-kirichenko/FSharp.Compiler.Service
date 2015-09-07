@@ -13,7 +13,6 @@ open NUnit.Framework
 open FsUnit
 open Microsoft.FSharp.Compiler.SourceCodeServices
 open System.IO
-open PerfUtil
 
 open FSharp.Compiler.Service.Tests.Common
 
