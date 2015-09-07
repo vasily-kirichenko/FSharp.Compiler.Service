@@ -4,6 +4,7 @@ nuget NUnit 2.6.3
 nuget NUnit.Runners 2.6.3
 nuget SQLite.Net-PCL 3.0.5
 nuget SQLite.Net.Platform.Generic 2.4.1
+nuget PerfUtil
 
 # build dependencies
 nuget NuGet.CommandLine
