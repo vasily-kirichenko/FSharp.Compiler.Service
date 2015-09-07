@@ -1,6 +1,7 @@
 ﻿#if INTERACTIVE
 #r "../../bin/v4.5/FSharp.Compiler.Service.dll"
 #r "../../packages/NUnit/lib/nunit.framework.dll"
+#r "../../packages/PerfUtil/lib/net40/PerfUtil.dll"
 #load "FsUnit.fs"
 #load "Common.fs"
 #else
@@ -10,11 +11,9 @@ module FSharp.Compiler.Service.Tests.PerfTests
 
 open NUnit.Framework
 open FsUnit
-open System
-open System.IO
-
-open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.SourceCodeServices
+open System.IO
+open PerfUtil
 
 open FSharp.Compiler.Service.Tests.Common
 
@@ -76,3 +75,17 @@ let ``Test request for parse and check doesn't check whole project`` () =
 
     ()
 
+[<Test>]
+let ``Parsing regression``() =
+    //#time
+    let files = 
+        Directory.GetFiles @"D:\github\FSharp.Compiler.Service\src\fsharp" 
+        |> Array.filter (fun f -> Path.GetExtension f = ".fs")
+        |> Array.map (fun f -> f, File.ReadAllText f)
+    let srcSize = files |> Array.sumBy (fun (_, src) -> src.Length)
+    
+    // worming up
+    checker.ParseFileInProject(fst files.[0], snd files.[0], Project1.options) |> Async.RunSynchronously |> ignore
+    
+    for fileName, fileSource in files do
+        checker.ParseFileInProject(fileName, fileSource, Project1.options) |> Async.RunSynchronously |> ignore

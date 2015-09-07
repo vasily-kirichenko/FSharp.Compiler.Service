@@ -74,11 +74,8 @@ let main _ =
 //    Console.ReadKey() |> ignore
     let sw = Stopwatch.StartNew()
     
-    //for fileName, fileSource in files do
-        //checker.ParseFileInProject(fileName, fileSource, Project1.options) |> Async.RunSynchronously |> ignore
-    //let opts = checker.GetProjectOptionsFromProjectFile (@"d:\git\FSharp.Compiler.Service\src\fsharp\FSharp.Compiler.Service\FSharp.Compiler.Service.fsproj")
-    let opts = checker.GetProjectOptionsFromProjectFile (@"d:\git\FSharp.Data\src\FSharp.Data.fsproj")
-    let res = checker.ParseAndCheckProject opts |> Async.RunSynchronously
+    for fileName, fileSource in files do
+        checker.ParseFileInProject(fileName, fileSource, Project1.options) |> Async.RunSynchronously |> ignore
 
     printfn "Done in %O" sw.Elapsed
     Console.ReadKey() |> ignore
