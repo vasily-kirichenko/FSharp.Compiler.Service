@@ -59,7 +59,7 @@ val OpenILModuleReaderAfterReadingAllBytes: string -> ILReaderOptions -> ILModul
 
 /// Open a binary reader based on the given bytes. 
 val OpenILModuleReaderFromBytes: fileNameForDebugOutput:string -> assemblyContents: byte[] -> options: ILReaderOptions -> ILModuleReader
-
+val ilModuleReaderCache: Internal.Utilities.Collections.AgedLookup<(string * System.DateTime), ILModuleReader>
 #if STATISTICS
 (* report statistics from all reads *)
 val report: TextWriter -> unit

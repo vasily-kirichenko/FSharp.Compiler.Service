@@ -149,7 +149,7 @@ type internal AgedLookup<'TKey,'TValue when 'TValue : not struct>(keepStrongly:i
        let keep = FilterAndHold()
        AssignWithStrength(keep, [])
 
-        
+    member al.RefsAsString() = refs |> List.map (fun (k, v) -> k.ToString(), sprintf "%+A => %+A" k v)
 
 type internal MruCache<'TKey,'TValue when 'TValue : not struct>(keepStrongly, areSame, ?isStillValid : 'TKey*'TValue->bool, ?areSameForSubsumption, ?onStrongDiscard, ?keepMax) =
         
@@ -189,6 +189,8 @@ type internal MruCache<'TKey,'TValue when 'TValue : not struct>(keepStrongly, ar
         
     member bc.Resize(newKeepStrongly, ?newKeepMax) =
         cache.Resize(newKeepStrongly, ?newKeepMax=newKeepMax)
+
+    member bc.RefsAsString() = cache.RefsAsString()
         
 /// List helpers
 [<Sealed>]

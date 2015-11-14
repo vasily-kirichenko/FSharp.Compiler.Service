@@ -29,7 +29,8 @@ namespace Internal.Utilities.Collections
     member Clear : unit -> unit
     /// Resize
     member Resize : keepStrongly: int * ?keepMax : int -> unit
-    
+    member RefsAsString: unit -> (string * string) list
+
   /// Simple priority caching for a small number of key\value associations.
   /// This cache may age-out results that have been Set by the caller.
   /// Because of this, the caller must be able to tolerate values 
@@ -54,6 +55,7 @@ namespace Internal.Utilities.Collections
     member Set : key:'TKey * value:'TValue -> unit
     /// Resize
     member Resize : keepStrongly: int * ?keepMax : int -> unit
+    member RefsAsString: unit -> (string * string) list
 
   [<Sealed>]
   type internal List = 

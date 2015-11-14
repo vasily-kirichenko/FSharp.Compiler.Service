@@ -8,7 +8,7 @@ open System.IO
 open System.Collections.Generic
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.NameResolution
-open Microsoft.FSharp.Compiler.Tastops
+open Microsoft.FSharp.Compiler.Tastops 
 open Microsoft.FSharp.Compiler.Lib
 open Microsoft.FSharp.Compiler.AbstractIL
 open Microsoft.FSharp.Compiler.AbstractIL.IL
@@ -1081,7 +1081,7 @@ type FrameworkImportsCache(keepStrongly) =
                 frameworkTcImportsCache.Put(key,res)
                 tcGlobals,tcImports
         tcGlobals,frameworkTcImports,nonFrameworkResolutions,unresolved
-
+    member __.RefsAsString() = frameworkTcImportsCache.RefsAsString()
 
 /// An error logger that capture errors, filtering them according to warning levels etc.
 type CompilationErrorLogger (debugName:string, tcConfig:TcConfig) = 

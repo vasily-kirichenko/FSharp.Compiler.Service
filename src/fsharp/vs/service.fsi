@@ -569,7 +569,8 @@ type FSharpChecker =
     /// so that an 'unload' and 'reload' action will cause the script to be considered as a new project,
     /// so that references are re-resolved.</param>
     member GetProjectOptionsFromCommandLineArgs : projectFileName: string * argv: string[] * ?loadedTimeStamp: DateTime -> FSharpProjectOptions
-           
+    member GetCachesState: unit -> (string * (string * string) list) list
+
 #if SILVERLIGHT
 #else
 #if FX_ATLEAST_45

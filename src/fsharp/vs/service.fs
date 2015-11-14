@@ -2266,7 +2266,7 @@ type BackgroundCompiler(projectCacheSize, keepAssemblyContents, keepAllBackgroun
     // strongly.
     // 
     /// Cache of builds keyed by options.        
-    let incrementalBuildersCache = 
+    let incrementalBuildersCache =
         MruCache(keepStrongly=projectCacheSize, keepMax=projectCacheSize, 
                  areSame =  FSharpProjectOptions.AreSameForChecking, 
                  areSameForSubsumption =  FSharpProjectOptions.AreSubsumable,
@@ -2659,6 +2659,15 @@ type BackgroundCompiler(projectCacheSize, keepAssemblyContents, keepAllBackgroun
     member __.ImplicitlyStartBackgroundWork with get() = implicitlyStartBackgroundWork and set v = implicitlyStartBackgroundWork <- v
     static member GlobalForegroundParseCountStatistic = foregroundParseCount
     static member GlobalForegroundTypeCheckCountStatistic = foregroundTypeCheckCount
+    member __.GetCachesState() =
+        [ "parseAndCheckFileInProjectCachePossiblyStale", parseAndCheckFileInProjectCachePossiblyStale.RefsAsString()
+          "parseAndCheckFileInProjectCache", parseAndCheckFileInProjectCache.RefsAsString()
+          "parseFileInProjectCache", parseFileInProjectCache.RefsAsString()
+          "incrementalBuildersCache", incrementalBuildersCache.RefsAsString()
+          "frameworkTcImportsCache", frameworkTcImportsCache.RefsAsString()
+          "scriptClosureCache", scriptClosureCache.RefsAsString() 
+          "ilModuleReaderCache", Microsoft.FSharp.Compiler.AbstractIL.ILBinaryReader.ilModuleReaderCache.RefsAsString() ]
+        
 
 #if SILVERLIGHT
 #else
@@ -3152,6 +3161,11 @@ type FSharpChecker(projectCacheSize, keepAssemblyContents, keepAllBackgroundReso
           UseScriptResolutionRules = false
           LoadTime = loadedTimeStamp
           UnresolvedReferences = None }
+
+    member ic.GetCachesState() = 
+        [ "braceMatchCache", braceMatchCache.RefsAsString()
+          "getToolTipTextCache", getToolTipTextCache.RefsAsString() ]
+        @ backgroundCompiler.GetCachesState()
 
 #if SILVERLIGHT
 #else

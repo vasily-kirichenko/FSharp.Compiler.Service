@@ -51,6 +51,7 @@ type internal FrameworkImportsCache =
     member Get : TcConfig -> TcGlobals * TcImports * AssemblyResolution list * UnresolvedAssemblyReference list
     member Clear: unit -> unit
     member Downsize: unit -> unit
+    member RefsAsString: unit -> (string * string) list
   
 /// Represents the state in the incremental graph assocaited with checking a file
 type internal PartialCheckResults = 
